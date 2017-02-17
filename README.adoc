@@ -7,38 +7,20 @@
 :maven-documentation-profile-link: http://maven.apache.org/guides/introduction/introduction-to-profiles.html
 :hivemq-support-forum: http://www.hivemq.com/support-forum/
 
-== HiveMQ Hello World Plugin
+== HiveMQ Persistent Shared Subscriptions Plugin
 
 === Purpose
 
-This Hello World plugin can be used as a foundation for writing your (first) {hivemq-link}[HiveMQ] plugin. Although {hivemq-plugin-docs-archetype-link}[there is a Maven Archetype available] to generate your Hello World plugin right from the IDE, you can use this example project if you don't like to use the Archetype.
-
-We strongly recommend to read the {hivemq-plugin-docs-link}[HiveMQ Plugin Documentation] to grasp the core concepts of HiveMQ plugin development.
+This plugin will persist any message to a shared subscription topic if currently no clients are active/available for that shared subscription.
+As soon as a new client connects to the shared subscription, it will receive all missed messages.
 
 === What you'll get
 
-This Hello World plugin implements a few simple HiveMQ Callbacks to get you started:
+Currently all storage is in memory so it is NOT distributed !!
 
-* A callback when a client connects
-* A callback when a client disconnects
-* A callback when a client publishes something
-* A callback when HiveMQ starts
-* A scheduled callback that gets executed every 5 sec
-
-There are also some advanced callbacks, which implement more complex use cases:
-
-* A callback that shows the Subscription Service
-* A scheduled callback using the RetainedMessages Service
-* A callback that shows the Client Service and Publish Service
-
-
-Also, this hello world plugin can reads configurations from a properties file (and reloads it every 5 minutes).
-
-There's a Maven profile configured which starts HiveMQ with your plugin. Just enable the profile and run the +package+ Maven phase.
-
-IMPORTANT: Don't forget to set the path to your HiveMQ installation in the +pom.xml+. There's a "FIXME:" in the +pom.xml+ to remind you of that.
-
-The plugin is documented with javadoc which explains what's going on. Please don't forget to read the extensive {hivemq-plugin-docs-link}[HiveMQ Plugin Documentation].
+Based on the OnSubscribe, OnUnsubscribe and OnDisconnect the plugins keeps track of active clients for a shared subscription.
+On OnPublishReceived the plugin will store a message to a shared subscription if no clients are active anymore.
+As soon as a new client subscribes on an existing shared subscription, this client will receive all missed messages.
 
 === Trying the plugin
 
@@ -47,15 +29,8 @@ The plugin is documented with javadoc which explains what's going on. Please don
 . Connect with a {hivemq-blog-tools}[MQTT client] of your choice and publish something. You should see some log output.
 
 
-=== Next steps
+=== Issues
 
-Awesome, you got your first HiveMQ plugin working. Now grab a coffee and prepare for the next steps:
-
-* Read about the available HiveMQ callbacks {hivemq-callbacks-overview-link}[here]. (There are also low level protocol callbacks available. See {github-low-level-callbacks}[https://github.com/hivemq/hivemq-spi/tree/master/src/main/java/com/dcsquare/hivemq/spi/callback/lowlevel])
-* Implement a great plugin. Bring your JDBC driver and do some database fun. Integrate with your favourite web service. There are no limits :-)
-* Blog about your awesome plugin. Tell us and if you like we can add your plugin to the plugin registry on http://www.hivemq.com
-
-
-=== Need help?
-
-If you encounter any problems, we are happy to help. The best place to get in contact is our {hivemq-support-forum}[support forum].
+When testing this plugin in IDE (IntelliJ) to plugin does deliver the messages for an existing shared subscription
+when a new shared subscription client connects when a breakpoint is added in the function PersistSharedSubscriptionMessageService.sendMessagesToClient
+but the messages do not arrive at the client when no breakpoint is set.

@@ -34,3 +34,8 @@ As soon as a new client subscribes on an existing shared subscription, this clie
 When testing this plugin in IDE (IntelliJ) to plugin does deliver the messages for an existing shared subscription
 when a new shared subscription client connects when a breakpoint is added in the function PersistSharedSubscriptionMessageService.sendMessagesToClient
 but the messages do not arrive at the client when no breakpoint is set.
+
+=== Next steps
+
+To provide a real storage for both the shared subscriptions and messages so the plugin can be used in a clustered environment.
+Probably will look at Redis for that.

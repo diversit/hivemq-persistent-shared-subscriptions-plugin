@@ -1,6 +1,7 @@
 package com.philips.hivemq.plugin.persistentsharedsubscriptions;
 
 import com.hivemq.spi.PluginEntryPoint;
+import com.philips.hivemq.plugin.persistentsharedsubscriptions.service.SharedSubscriptionRegistry;
 import com.philips.hivemq.plugin.persistentsharedsubscriptions.service.SharedSubscriptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,14 +23,19 @@ import javax.inject.Inject;
 public class PersistentSharedSubscriptionsPlugin extends PluginEntryPoint {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSharedSubscriptionsPlugin.class);
+    private final SharedSubscriptionRegistry registry;
+    private final SharedSubscriptionService sharedSubscriptionService;
 
     @Inject
-    public PersistentSharedSubscriptionsPlugin() {
+    public PersistentSharedSubscriptionsPlugin(SharedSubscriptionRegistry registry,
+                                               SharedSubscriptionService sharedSubscriptionService) {
+        this.registry = registry;
+        this.sharedSubscriptionService = sharedSubscriptionService;
     }
 
     @PostConstruct
     public void registerCallbacks() {
-        new SharedSubscriptionService(getCallbackRegistry());
+        sharedSubscriptionService.registerCallbacks(getCallbackRegistry());
     }
 
 }

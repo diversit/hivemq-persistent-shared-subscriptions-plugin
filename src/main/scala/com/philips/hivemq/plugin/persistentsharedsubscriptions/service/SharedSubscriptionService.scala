@@ -11,12 +11,12 @@ import scala.collection.mutable
 /**
   * Service to handle events to keep the [[SharedSubscriptionRegistry]] up to date.
   */
-class SharedSubscriptionService(callbackRegistry: CallbackRegistry) {
+class SharedSubscriptionService(registry: SharedSubscriptionRegistry) {
 
-  val registry: SharedSubscriptionRegistry = new InMemorySharedSubscriptionRegistry()
-
-  callbackRegistry.addCallback(new SubscriptionsHandler(registry))
-  callbackRegistry.addCallback(new DisconnectHandler(registry))
+  def registerCallbacks(callbackRegistry: CallbackRegistry) = {
+    callbackRegistry.addCallback(new SubscriptionsHandler(registry))
+    callbackRegistry.addCallback(new DisconnectHandler(registry))
+  }
 }
 
 /**

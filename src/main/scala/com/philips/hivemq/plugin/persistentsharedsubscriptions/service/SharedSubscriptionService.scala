@@ -1,7 +1,6 @@
 package com.philips.hivemq.plugin.persistentsharedsubscriptions.service
 
 import com.hivemq.spi.callback.events.{OnDisconnectCallback, OnSubscribeCallback, OnUnsubscribeCallback}
-import com.hivemq.spi.callback.registry.CallbackRegistry
 import com.hivemq.spi.message.{SUBSCRIBE, UNSUBSCRIBE}
 import com.hivemq.spi.security.ClientData
 import org.slf4j.LoggerFactory
@@ -11,22 +10,15 @@ import scala.collection.mutable
 /**
   * Service to handle events to keep the [[SharedSubscriptionRegistry]] up to date.
   */
-class SharedSubscriptionService(registry: SharedSubscriptionRegistry) {
+class SharedSubscriptionService(registry: SharedSubscriptionRegistry,
+                                persistSharedSubscriptionMessageService: PersistSharedSubscriptionMessageService) extends OnDisconnectCallback with OnSubscribeCallback with OnUnsubscribeCallback {
+  import collection.JavaConverters._
 
-  def registerCallbacks(callbackRegistry: CallbackRegistry) = {
-    callbackRegistry.addCallback(new SubscriptionsHandler(registry))
-    callbackRegistry.addCallback(new DisconnectHandler(registry))
-  }
-}
-
-/**
-  * Callback handler to handle both gracefull and ungracefull disconnection of clients.
-  * In case of disconnection, the client will be removed from all it's shared subscriptions
-  * so the shared subscription has an accurate view on all active clients.
-  *
-  * @param registry The registry in which to (un)register subscriptions.
-  */
-class DisconnectHandler(registry: SharedSubscriptionRegistry) extends OnDisconnectCallback {
+  /**
+    * Callback handler to handle both gracefull and ungracefull disconnection of clients.
+    * In case of disconnection, the client will be removed from all it's shared subscriptions
+    * so the shared subscription has an accurate view on all active clients.
+    */
   override def onDisconnect(clientData: ClientData, abruptAbort: Boolean): Unit = {
     // find all subscriptions for this client
     val subscriptions: Seq[SharedSubscription] = registry.getSubscriptionsForClient(clientData.getClientId)
@@ -38,26 +30,24 @@ class DisconnectHandler(registry: SharedSubscriptionRegistry) extends OnDisconne
     // unregister client from all subscriptions
     subscriptions foreach unregisterSubscription
   }
-}
-
-/**
-  * Callback handler for both Subscribe and Unsubscribe events.
-  * @param registry The registry in which to (un)register subscriptions.
-  */
-class SubscriptionsHandler(registry: SharedSubscriptionRegistry) extends OnSubscribeCallback with OnUnsubscribeCallback {
-  import collection.JavaConverters._
 
   /** register subscription for client if subscription is a shared subscription */
   override def onSubscribe(message: SUBSCRIBE, clientData: ClientData) = {
     // Register subscription for the client
-    val registerSubscription: SharedSubscription => Unit =
-      subscription => registry.addSubscription(subscription, clientData.getClientId)
+    val registerSubscription: SharedSubscription => Unit = { subscription =>
+      val isFirstClient = registry.hasNoActiveClients(subscription)
+      registry.addSubscription(subscription, clientData.getClientId)
+
+      if (isFirstClient) {
+        persistSharedSubscriptionMessageService.sendMessagesToClient(subscription, clientData)
+      }
+    }
 
     val topicsNamesSeq = message.getTopics.asScala.map(_.getTopic)
     handleSubscription(topicsNamesSeq, registerSubscription)
   }
 
-
+  /** unregister subscription for client if subscription is a shared subscription */
   override def onUnsubscribe(message: UNSUBSCRIBE, clientData: ClientData): Unit = {
     // Unregister the subscription for the client
     val unregisterSubscription: SharedSubscription => Unit =
@@ -91,6 +81,21 @@ trait SharedSubscriptionRegistry {
   def removeSubscription(sharedSubscription: SharedSubscription, clientID: ClientID): Unit
 
   def getSubscriptionsForClient(clientID: ClientID): Seq[SharedSubscription]
+
+  /**
+    * Return all shared subscriptions for given topic.
+    * Note that there may be multiple shared subscriptions, each with a different groupId.
+    *
+    * @param topicName Name of the topic.
+    * @return [[Seq]] of [[SharedSubscription]]s for given topic name.
+    */
+  def getSharedSubscriptionsForTopic(topicName: String): Seq[SharedSubscription]
+
+  /**
+    * @param sharedSubscription The [[SharedSubscription]] to check.
+    * @return <code>True</code> when the subscription has NO active clients. Otherwise <code>False</code>.
+    */
+  def hasNoActiveClients(sharedSubscription: SharedSubscription): Boolean
 }
 
 class InMemorySharedSubscriptionRegistry extends SharedSubscriptionRegistry {
@@ -127,9 +132,19 @@ class InMemorySharedSubscriptionRegistry extends SharedSubscriptionRegistry {
       case (subscription, clients) if (clients.contains(clientID)) => subscription
     }.toSeq
   }
+
+  override def getSharedSubscriptionsForTopic(topicName: String): Seq[SharedSubscription] = {
+    subscriptionMap.keys.filter(_.topic == topicName).toSeq
+  }
+
+  override def hasNoActiveClients(sharedSubscription: SharedSubscription): Boolean = {
+    subscriptionMap.get(sharedSubscription) map (_.isEmpty) getOrElse(false)
+  }
 }
 
-case class SharedSubscription(groupId: String, topic: String)
+case class SharedSubscription(groupId: String, topic: String) {
+  override def toString: String = s"$$share:$groupId:$topic"
+}
 
 object SharedSubscription {
 
@@ -145,10 +160,7 @@ object SharedSubscription {
     * A shared topic must start with '$share.'
     * Use 'startsWith' because faster (I think) than using the regex pattern.
     */
-  val IS_SHARED_SUBSCRIPTION: String => Boolean = topicName => {
-    val x = topicName.startsWith("$share")
-    x
-  }
+  val IS_SHARED_SUBSCRIPTION: String => Boolean = topicName => topicName.startsWith("$share")
 
   def from(topicName: String): Option[SharedSubscription] = topicName match {
     case SHARED_SUBSCRIPTION_REGEX(groupId, topicname) => Some(SharedSubscription(groupId, topicname))

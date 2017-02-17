@@ -1,6 +1,11 @@
 package com.philips.hivemq.plugin.persistentsharedsubscriptions;
 
 import com.hivemq.spi.PluginEntryPoint;
+import com.hivemq.spi.callback.events.OnPublishReceivedCallback;
+import com.hivemq.spi.callback.exception.OnPublishReceivedException;
+import com.hivemq.spi.message.PUBLISH;
+import com.hivemq.spi.security.ClientData;
+import com.philips.hivemq.plugin.persistentsharedsubscriptions.service.PersistSharedSubscriptionMessageService;
 import com.philips.hivemq.plugin.persistentsharedsubscriptions.service.SharedSubscriptionRegistry;
 import com.philips.hivemq.plugin.persistentsharedsubscriptions.service.SharedSubscriptionService;
 import org.slf4j.Logger;
@@ -23,19 +28,24 @@ import javax.inject.Inject;
 public class PersistentSharedSubscriptionsPlugin extends PluginEntryPoint {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSharedSubscriptionsPlugin.class);
+
     private final SharedSubscriptionRegistry registry;
     private final SharedSubscriptionService sharedSubscriptionService;
+    private PersistSharedSubscriptionMessageService persistSharedSubscriptionMessageService;
 
     @Inject
     public PersistentSharedSubscriptionsPlugin(SharedSubscriptionRegistry registry,
-                                               SharedSubscriptionService sharedSubscriptionService) {
+                                               SharedSubscriptionService sharedSubscriptionService,
+                                               PersistSharedSubscriptionMessageService persistSharedSubscriptionMessageService) {
         this.registry = registry;
         this.sharedSubscriptionService = sharedSubscriptionService;
+        this.persistSharedSubscriptionMessageService = persistSharedSubscriptionMessageService;
     }
 
     @PostConstruct
     public void registerCallbacks() {
-        sharedSubscriptionService.registerCallbacks(getCallbackRegistry());
+        getCallbackRegistry().addCallback(sharedSubscriptionService);
+        getCallbackRegistry().addCallback(persistSharedSubscriptionMessageService);
     }
 
 }

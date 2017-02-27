@@ -29,13 +29,13 @@ object Producer extends App {
     println("Disconnected.")
   }
 
-  while(true) {
+//  while(true) {
     val msg = new MqttMessage(s"Message: $count".getBytes())
     theTopic.publish(msg)
     println(s"Published: $msg")
 
-    Thread.sleep(1000)
+//    Thread.sleep(1000)
 
-    count = count + 1
-  }
+//    count = count + 1
+//  }
 }

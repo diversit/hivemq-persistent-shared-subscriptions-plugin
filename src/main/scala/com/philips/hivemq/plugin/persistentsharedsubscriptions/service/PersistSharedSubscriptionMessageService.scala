@@ -60,15 +60,46 @@ class PersistSharedSubscriptionMessageService(pluginExecutorService: PluginExecu
 
         val messages = messageStore.getMessagesForSharedSubscription(sharedSubscription)
 
+        pluginExecutorService.submit(new RunTask(
+          publishService.publish(new PUBLISH("test 1".getBytes, "test", QoS.AT_LEAST_ONCE))
+        ))
+        pluginExecutorService.submit(new RunTask(
+          publishService.publish(new PUBLISH("test 2".getBytes, sharedSubscription.toString, QoS.AT_LEAST_ONCE))
+        ))
+        pluginExecutorService.submit(new RunTask(
+          publishService.publish(new PUBLISH("test 3".getBytes, "$share:my-consumers:test", QoS.AT_LEAST_ONCE))
+        ))
+
+        pluginExecutorService.submit(new RunTask(
+          publishService.publishtoClient(new PUBLISH("test a".getBytes, "test", QoS.AT_LEAST_ONCE), clientData.getClientId)
+        ))
+        pluginExecutorService.submit(new RunTask(
+          publishService.publishtoClient(new PUBLISH("test b".getBytes, sharedSubscription.toString, QoS.AT_LEAST_ONCE), clientData.getClientId)
+        ))
+        pluginExecutorService.submit(new RunTask(
+          publishService.publishtoClient(new PUBLISH("test c".getBytes, "$share:my-consumers:test", QoS.AT_LEAST_ONCE), clientData.getClientId)
+        ))
+
         messages foreach { message =>
           log.debug("Publishing message '{}' to client '{}'", new String(message), clientData.getClientId: Any)
 
-          val publish = new PUBLISH(message, sharedSubscription.toString, QoS.AT_LEAST_ONCE)
-          publishService.publishtoClient(publish, clientData.getClientId)
+//          val publish = new PUBLISH(message, sharedSubscription.toString, QoS.AT_LEAST_ONCE)
+          publishService.publishtoClient(new PUBLISH("12".getBytes(), "$share:my-consumers:test", QoS.AT_LEAST_ONCE), clientData.getClientId)
+          publishService.publishtoClient(new PUBLISH("11".getBytes(), "test", QoS.AT_LEAST_ONCE), clientData.getClientId)
+          publishService.publishtoClient(new PUBLISH("13".getBytes(), "$share/my-consumers/test", QoS.AT_LEAST_ONCE), clientData.getClientId)
+
+          publishService.publish(new PUBLISH("22".getBytes(), "$share:my-consumers:test", QoS.AT_LEAST_ONCE))
+          publishService.publish(new PUBLISH("21".getBytes(), "test", QoS.AT_LEAST_ONCE))
+          publishService.publish(new PUBLISH("23".getBytes(), "$share/my-consumers/test", QoS.AT_LEAST_ONCE))
         }
       }
     })
   }
 
   override def priority(): Int = 100
+}
+
+class RunTask(task: => Unit) extends Runnable {
+
+  override def run(): Unit = task
 }

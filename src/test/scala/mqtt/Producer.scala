@@ -30,7 +30,7 @@ object Producer extends App {
   }
 
 //  while(true) {
-    val msg = new MqttMessage(s"Message: $count".getBytes())
+    val msg = new MqttMessage(s"Message: ${new java.util.Date()}".getBytes())
     theTopic.publish(msg)
     println(s"Published: $msg")
 
@@ -38,4 +38,6 @@ object Producer extends App {
 
 //    count = count + 1
 //  }
+
+  sys.exit()
 }

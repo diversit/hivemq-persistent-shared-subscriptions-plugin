@@ -154,7 +154,7 @@ object SharedSubscription {
     *
     * Note: Paho only likes the '/' variant.
     */
-  val SHARED_SUBSCRIPTION_REGEX = """\$share[:/]([a-zA-Z-]+)[:/]([a-zA-Z]+)""".r
+  val SHARED_SUBSCRIPTION_REGEX = """\$share[:/]([a-zA-Z-]+)[:/]([0-9a-zA-Z/]+)""".r
 
   /**
     * A shared topic must start with '$share.'
